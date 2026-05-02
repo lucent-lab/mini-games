@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Repeat Matrix · Lucent Lab Mini Games</title>
+<style>
+:root{
+  --ink:#172033;
+  --muted:#647083;
+  --panel:#fffdf4;
+  --card:#ffffff;
+  --blue:#1682d4;
+  --red:#e04747;
+  --purple:#7d5ce7;
+  --gold:#ffbd35;
+  --green:#54ba6b;
+  --line:#eadfc6;
+  --soft-blue:#dff3ff;
+  --soft-gold:#fff3c5;
+  --soft-purple:#efe8ff;
+  --shadow:0 22px 70px rgba(23,32,51,.14);
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#aee8ff;color:var(--ink)}
+body{overflow:hidden;touch-action:manipulation}
+button,a{-webkit-tap-highlight-color:transparent}
+.app{position:fixed;inset:0;display:flex;flex-direction:column;gap:10px;padding:calc(10px + env(safe-area-inset-top)) 12px calc(12px + env(safe-area-inset-bottom));background:linear-gradient(#96dcff 0%,#c8f3ff 42%,#d7f2a6 43%,#9bdc6b 100%);overflow:hidden}
+.app:before,.app:after{content:"";position:absolute;border-radius:999px;background:rgba(255,255,255,.6);filter:blur(2px)}
+.app:before{width:170px;height:54px;left:8%;top:15%}.app:after{width:260px;height:90px;right:-38px;top:22%}
+.top{position:relative;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.back,.pill,.iconBtn{border:0;border-radius:999px;background:rgba(255,255,255,.9);box-shadow:0 10px 28px rgba(23,32,51,.16);font-weight:1000;color:var(--ink);text-decoration:none;min-height:46px}
+.back{display:grid;place-items:center;width:48px;font-size:24px}.pill{display:flex;align-items:center;gap:8px;padding:7px 12px;font-size:24px}.score{font-size:22px;color:#704acc}.controls{display:flex;gap:8px}.iconBtn{padding:0 14px;font-size:22px;cursor:pointer}.iconBtn.on{background:#fff2ac;transform:translateY(-1px)}
+.stage{position:relative;z-index:2;flex:1;min-height:0;display:grid;grid-template-rows:minmax(0,1fr) auto;gap:10px;width:min(1100px,100%);margin:0 auto}
+.boardWrap{position:relative;display:grid;place-items:center;min-height:0}.board{width:min(94vh,100%);max-width:860px;aspect-ratio:1.16;display:grid;grid-template-columns:.72fr repeat(3,1fr);grid-template-rows:.66fr repeat(3,1fr);gap:6px;padding:10px;border-radius:28px;background:rgba(255,255,255,.82);box-shadow:var(--shadow);backdrop-filter:blur(8px)}
+.cell{position:relative;display:grid;place-items:center;min-width:0;min-height:0;border-radius:20px;background:linear-gradient(#fff,#fff9ea);border:3px solid rgba(234,223,198,.78);box-shadow:inset 0 -4px 0 rgba(23,32,51,.04);overflow:hidden;transition:transform .16s ease,box-shadow .16s ease,border-color .16s ease,background .16s ease}
+.op{background:linear-gradient(135deg,#8b6df1,#6240cc);color:white;font-size:clamp(38px,7vmin,72px);font-weight:1000;text-shadow:0 4px 0 rgba(0,0,0,.12)}
+.headerTop,.headerLeft{font-weight:1000}.headerTop{background:linear-gradient(#fff7e5,#fffaf0)}.headerLeft{background:linear-gradient(#e8f7ff,#f6fcff);color:var(--blue);font-size:clamp(34px,7vmin,70px)}
+.headerTop .symbolHead{font-size:clamp(20px,4.6vmin,44px);letter-spacing:.02em;line-height:1;filter:drop-shadow(0 4px 0 rgba(23,32,51,.06))}.headerTop .redHead{color:var(--red);font-size:clamp(36px,7vmin,72px)}
+.headerTop.hot,.headerLeft.hot{border-color:var(--gold);background:linear-gradient(#fff6c2,#fffdf2);box-shadow:0 0 0 5px rgba(255,189,53,.22),inset 0 -4px 0 rgba(23,32,51,.04);transform:translateY(-2px)}
+.resultCell{cursor:pointer}.resultCell.empty{background:linear-gradient(#fffaf1,#fff3d5);border:3px dashed #f5af22;color:#da7e00}.resultCell.selected{border-color:#7d5ce7;background:linear-gradient(#fbf8ff,#f0eaff);box-shadow:0 0 0 6px rgba(125,92,231,.22),inset 0 -4px 0 rgba(23,32,51,.04);transform:scale(1.02);z-index:2}.resultCell.done{animation:pop .34s ease}.question{font-size:clamp(36px,8vmin,82px);font-weight:1000}.spark{position:absolute;right:8px;top:6px;font-size:22px;opacity:0;transform:scale(.2);transition:.25s}.done .spark{opacity:1;transform:scale(1)}
+.matrixResult{display:grid;place-items:center;align-content:center;gap:1px;width:100%;height:100%;padding:3px}.groupRow{display:flex;align-items:center;justify-content:center;gap:.08em;min-width:0}.piece{font-size:clamp(15px,3.15vmin,31px);line-height:1;filter:drop-shadow(0 3px 0 rgba(23,32,51,.05))}.plus{font-size:clamp(10px,1.9vmin,18px);line-height:.8;color:#7a8495;font-weight:1000}.numRow{color:var(--red);font-size:clamp(25px,5vmin,54px);font-weight:1000;line-height:.9}.numRow .piece{font-size:inherit;color:var(--red)}
+.tray{position:relative;z-index:2;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;width:min(980px,100%);margin:0 auto;padding:10px;border-radius:28px;background:rgba(128,95,221,.28);box-shadow:0 18px 55px rgba(23,32,51,.12);backdrop-filter:blur(8px)}
+.option{position:relative;display:grid;place-items:center;min-height:104px;border:0;border-radius:22px;background:white;box-shadow:0 9px 24px rgba(23,32,51,.14);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease}.option:hover,.option:focus-visible{transform:translateY(-3px);box-shadow:0 14px 34px rgba(23,32,51,.2);outline:0}.option.correctFlash{animation:good .45s ease}.option.bad{animation:shake .32s ease}.option .matrixResult{padding:7px}.option .piece{font-size:clamp(20px,4.5vmin,40px)}.option .numRow{font-size:clamp(28px,6vmin,60px)}
+.guide{position:absolute;left:50%;bottom:calc(100% + 8px);transform:translateX(-50%);display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.86);box-shadow:0 10px 30px rgba(23,32,51,.12);font-weight:1000;color:#7a5be2;opacity:0;transition:.2s;pointer-events:none}.guide.show{opacity:1;transform:translate(-50%,-2px)}.guide .blue{color:var(--blue)}.guide .red{color:var(--red)}.guide .sym{font-size:22px}.guide .opMini{color:var(--purple)}
+.mascot{position:absolute;left:max(10px,calc(50% - 565px));bottom:18px;font-size:clamp(54px,10vmin,105px);filter:drop-shadow(0 13px 18px rgba(23,32,51,.18));z-index:1;animation:bob 2.2s ease-in-out infinite}.confetti{position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:4}.confetti i{position:absolute;font-style:normal;font-size:28px;animation:floatUp .8s ease-out forwards}
+@keyframes pop{0%{transform:scale(.92)}55%{transform:scale(1.06)}100%{transform:scale(1)}}@keyframes good{0%{transform:scale(1)}50%{transform:scale(1.08);box-shadow:0 0 0 7px rgba(84,186,107,.22),0 14px 34px rgba(23,32,51,.2)}100%{transform:scale(1)}}@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-8px)}50%{transform:translateX(7px)}75%{transform:translateX(-4px)}}@keyframes bob{50%{transform:translateY(-8px) rotate(3deg)}}@keyframes floatUp{from{opacity:1;transform:translateY(0) scale(.8) rotate(0)}to{opacity:0;transform:translateY(-90px) scale(1.35) rotate(30deg)}}
+@media (max-width:760px){.app{gap:8px;padding-left:8px;padding-right:8px}.board{width:100%;gap:4px;padding:7px;border-radius:22px}.cell{border-width:2px;border-radius:15px}.tray{gap:7px;padding:8px;border-radius:22px}.option{min-height:82px;border-radius:17px}.controls{gap:6px}.iconBtn{font-size:18px;padding:0 10px}.mascot{display:none}.pill{font-size:20px}.back{width:44px;min-height:44px}}
+@media (max-height:700px){.option{min-height:76px}.tray{padding:7px}.top{min-height:42px}.back,.pill,.iconBtn{min-height:40px}.board{gap:4px;padding:7px}.stage{gap:7px}.mascot{display:none}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="top" aria-label="Game controls">
+    <a class="back" href="../../" aria-label="Mini Games">←</a>
+    <div class="pill" aria-label="Stars"><span aria-hidden="true">⭐</span><span id="score" class="score">0</span></div>
+    <div class="controls">
+      <button id="theme" class="iconBtn" type="button" aria-label="Change symbol">😀</button>
+      <button id="advanced" class="iconBtn" type="button" aria-label="Number mode">123</button>
+      <button id="reset" class="iconBtn" type="button" aria-label="New puzzle">↻</button>
+    </div>
+  </div>
+  <main class="stage" aria-label="Repeat Matrix game">
+    <div class="boardWrap">
+      <section id="board" class="board" aria-label="Multiplication matrix"></section>
+      <div class="mascot" aria-hidden="true">🦕</div>
+    </div>
+    <section class="tray" aria-label="Answers">
+      <div id="guide" class="guide" aria-hidden="true"></div>
+      <button class="option" type="button"></button>
+      <button class="option" type="button"></button>
+      <button class="option" type="button"></button>
+      <button class="option" type="button"></button>
+    </section>
+  </main>
+  <div id="confetti" class="confetti" aria-hidden="true"></div>
+</div>
+<script>
+(() => {
+  "use strict";
+
+  const board = document.getElementById("board");
+  const options = Array.from(document.querySelectorAll(".option"));
+  const scoreEl = document.getElementById("score");
+  const themeBtn = document.getElementById("theme");
+  const advancedBtn = document.getElementById("advanced");
+  const resetBtn = document.getElementById("reset");
+  const guide = document.getElementById("guide");
+  const confetti = document.getElementById("confetti");
+
+  const reps = [1, 2, 3];
+  const sizes = [1, 2, 3];
+  const symbols = ["😀", "❤️", "🍎", "⭐", "🐠"];
+  let theme = 0;
+  let advanced = false;
+  let score = 0;
+  let level = 0;
+  let selectedKey = "";
+  let blanks = new Set();
+  let filled = new Set();
+
+  function key(rep, size) {
+    return `${rep}-${size}`;
+  }
+
+  function parseKey(value) {
+    const [rep, size] = value.split("-").map(Number);
+    return { rep, size };
+  }
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function symbolGroup(size) {
+    return Array.from({ length: size }, () => symbols[theme]);
+  }
+
+  function makeResult(rep, size) {
+    const result = document.createElement("div");
+    result.className = "matrixResult";
+    if (advanced) {
+      for (let row = 0; row < rep; row += 1) {
+        const groupRow = document.createElement("div");
+        groupRow.className = "groupRow numRow";
+        const piece = document.createElement("span");
+        piece.className = "piece";
+        piece.textContent = String(size);
+        groupRow.appendChild(piece);
+        result.appendChild(groupRow);
+        if (row < rep - 1) result.appendChild(makePlus());
+      }
+    } else {
+      for (let row = 0; row < rep; row += 1) {
+        const groupRow = document.createElement("div");
+        groupRow.className = "groupRow";
+        for (const symbol of symbolGroup(size)) {
+          const piece = document.createElement("span");
+          piece.className = "piece";
+          piece.textContent = symbol;
+          groupRow.appendChild(piece);
+        }
+        result.appendChild(groupRow);
+        if (row < rep - 1) result.appendChild(makePlus());
+      }
+    }
+    return result;
+  }
+
+  function makePlus() {
+    const plus = document.createElement("div");
+    plus.className = "plus";
+    plus.textContent = "+";
+    return plus;
+  }
+
+  function makeTopHeader(size, hot) {
+    const cell = document.createElement("div");
+    cell.className = `cell headerTop${hot ? " hot" : ""}`;
+    if (advanced) {
+      const num = document.createElement("span");
+      num.className = "redHead";
+      num.textContent = String(size);
+      cell.appendChild(num);
+    } else {
+      const head = document.createElement("div");
+      head.className = "symbolHead";
+      head.textContent = symbolGroup(size).join("");
+      cell.appendChild(head);
+    }
+    return cell;
+  }
+
+  function makeLeftHeader(rep, hot) {
+    const cell = document.createElement("div");
+    cell.className = `cell headerLeft${hot ? " hot" : ""}`;
+    cell.textContent = String(rep);
+    return cell;
+  }
+
+  function makeResultCell(rep, size) {
+    const k = key(rep, size);
+    const cell = document.createElement("button");
+    const isBlank = blanks.has(k) && !filled.has(k);
+    const selected = selectedKey === k;
+    cell.type = "button";
+    cell.className = `cell resultCell${isBlank ? " empty" : ""}${selected ? " selected" : ""}${filled.has(k) ? " done" : ""}`;
+    cell.dataset.key = k;
+    cell.setAttribute("aria-label", `cell ${rep} by ${size}`);
+    if (isBlank) {
+      const q = document.createElement("span");
+      q.className = "question";
+      q.textContent = "?";
+      cell.appendChild(q);
+    } else {
+      cell.appendChild(makeResult(rep, size));
+      const spark = document.createElement("span");
+      spark.className = "spark";
+      spark.textContent = "✨";
+      cell.appendChild(spark);
+    }
+    cell.addEventListener("click", () => selectCell(k));
+    return cell;
+  }
+
+  function renderBoard() {
+    const selected = selectedKey ? parseKey(selectedKey) : null;
+    board.innerHTML = "";
+    const op = document.createElement("div");
+    op.className = "cell op";
+    op.textContent = "×";
+    board.appendChild(op);
+    for (const size of sizes) board.appendChild(makeTopHeader(size, selected?.size === size));
+    for (const rep of reps) {
+      board.appendChild(makeLeftHeader(rep, selected?.rep === rep));
+      for (const size of sizes) board.appendChild(makeResultCell(rep, size));
+    }
+    updateGuide();
+  }
+
+  function updateGuide() {
+    if (!selectedKey) {
+      guide.classList.remove("show");
+      guide.innerHTML = "";
+      return;
+    }
+    const { rep, size } = parseKey(selectedKey);
+    if (advanced) {
+      guide.innerHTML = `<span class="blue">${rep}</span><span class="opMini">×</span><span class="red">${size}</span>`;
+    } else {
+      guide.innerHTML = `<span class="blue">${rep}</span><span class="opMini">×</span><span class="sym">${symbolGroup(size).join("")}</span>`;
+    }
+    guide.classList.add("show");
+  }
+
+  function selectCell(k) {
+    if (!blanks.has(k) || filled.has(k)) return;
+    selectedKey = k;
+    renderBoard();
+    renderOptions();
+  }
+
+  function resultSignature(rep, size) {
+    return `${advanced ? "n" : symbols[theme]}:${rep}:${size}`;
+  }
+
+  function optionPool(rep, size) {
+    const seeds = [
+      [rep, size],
+      [Math.max(1, rep - 1), size],
+      [Math.min(3, rep + 1), size],
+      [rep, Math.max(1, size - 1)],
+      [rep, Math.min(3, size + 1)],
+      [size, rep],
+      [1 + ((rep + size) % 3), 1 + ((size + 1) % 3)]
+    ];
+    const seen = new Set();
+    const out = [];
+    for (const [r, s] of seeds) {
+      const sig = resultSignature(r, s);
+      if (!seen.has(sig)) {
+        seen.add(sig);
+        out.push({ rep: r, size: s, correct: r === rep && s === size });
+      }
+      if (out.length === 4) break;
+    }
+    while (out.length < 4) {
+      const r = 1 + Math.floor(Math.random() * 3);
+      const s = 1 + Math.floor(Math.random() * 3);
+      const sig = resultSignature(r, s);
+      if (!seen.has(sig)) {
+        seen.add(sig);
+        out.push({ rep: r, size: s, correct: r === rep && s === size });
+      }
+    }
+    return shuffle(out);
+  }
+
+  function renderOptions() {
+    if (!selectedKey) {
+      options.forEach(option => { option.innerHTML = ""; option.disabled = true; });
+      guide.classList.remove("show");
+      return;
+    }
+    const { rep, size } = parseKey(selectedKey);
+    const pool = optionPool(rep, size);
+    options.forEach((option, index) => {
+      const item = pool[index];
+      option.disabled = false;
+      option.className = "option";
+      option.dataset.correct = String(item.correct);
+      option.dataset.rep = String(item.rep);
+      option.dataset.size = String(item.size);
+      option.innerHTML = "";
+      option.appendChild(makeResult(item.rep, item.size));
+      option.setAttribute("aria-label", item.correct ? "correct answer" : "answer option");
+    });
+    updateGuide();
+  }
+
+  function nextBlank() {
+    return Array.from(blanks).find(k => !filled.has(k)) || "";
+  }
+
+  function choose(option) {
+    if (!selectedKey || option.disabled) return;
+    if (option.dataset.correct === "true") {
+      option.classList.add("correctFlash");
+      filled.add(selectedKey);
+      score += 1;
+      scoreEl.textContent = String(score);
+      burst(option);
+      selectedKey = nextBlank();
+      setTimeout(() => {
+        renderBoard();
+        if (selectedKey) renderOptions();
+        else finishLevel();
+      }, 260);
+    } else {
+      option.classList.remove("bad");
+      option.offsetHeight;
+      option.classList.add("bad");
+      const selectedCell = board.querySelector(`[data-key="${selectedKey}"]`);
+      if (selectedCell) {
+        selectedCell.classList.remove("selected");
+        selectedCell.offsetHeight;
+        selectedCell.classList.add("selected");
+      }
+    }
+  }
+
+  function finishLevel() {
+    selectedKey = "";
+    renderOptions();
+    for (let i = 0; i < 18; i += 1) {
+      const bit = document.createElement("i");
+      bit.textContent = ["✨", "⭐", "💫", "🌟"][i % 4];
+      bit.style.left = `${18 + Math.random() * 64}%`;
+      bit.style.top = `${32 + Math.random() * 26}%`;
+      bit.style.animationDelay = `${Math.random() * .2}s`;
+      confetti.appendChild(bit);
+      setTimeout(() => bit.remove(), 1000);
+    }
+    setTimeout(newLevel, 900);
+  }
+
+  function burst(anchor) {
+    const rect = anchor.getBoundingClientRect();
+    for (let i = 0; i < 5; i += 1) {
+      const bit = document.createElement("i");
+      bit.textContent = i % 2 ? "✨" : "⭐";
+      bit.style.left = `${rect.left + rect.width / 2 + (Math.random() - .5) * rect.width}px`;
+      bit.style.top = `${rect.top + rect.height / 2 + (Math.random() - .5) * rect.height}px`;
+      confetti.appendChild(bit);
+      setTimeout(() => bit.remove(), 900);
+    }
+  }
+
+  function newLevel() {
+    level += 1;
+    filled = new Set();
+    const keys = [];
+    for (const rep of reps) for (const size of sizes) keys.push(key(rep, size));
+    const count = level < 3 ? 3 : 4;
+    blanks = new Set(shuffle(keys).slice(0, count));
+    selectedKey = nextBlank();
+    renderBoard();
+    renderOptions();
+  }
+
+  function rerenderForModeChange() {
+    filled = new Set();
+    selectedKey = nextBlank();
+    renderBoard();
+    renderOptions();
+  }
+
+  options.forEach(option => option.addEventListener("click", () => choose(option)));
+  themeBtn.addEventListener("click", () => {
+    theme = (theme + 1) % symbols.length;
+    themeBtn.textContent = symbols[theme];
+    advanced = false;
+    advancedBtn.classList.remove("on");
+    rerenderForModeChange();
+  });
+  advancedBtn.addEventListener("click", () => {
+    advanced = !advanced;
+    advancedBtn.classList.toggle("on", advanced);
+    rerenderForModeChange();
+  });
+  resetBtn.addEventListener("click", () => newLevel());
+
+  newLevel();
+})();
+</script>
+</body>
+</html>
