@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Bee Pollen Flight · Lucent Lab Mini Games</title>
+<style>
+*{box-sizing:border-box}html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#c9f0ff;color:#172033}.wrap{position:fixed;inset:0;background:linear-gradient(#aee8ff,#f9fbdd 68%,#f6e7aa)}canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none}.top{position:absolute;left:12px;right:12px;top:calc(10px + env(safe-area-inset-top));display:flex;gap:10px;align-items:center;justify-content:space-between;pointer-events:none}.back,.pill,.mode{pointer-events:auto;border:0;border-radius:999px;background:rgba(255,255,255,.82);box-shadow:0 10px 30px #17203322;backdrop-filter:blur(10px);font-weight:900;color:#172033}.back{display:grid;place-items:center;width:46px;height:46px;text-decoration:none}.pill{display:flex;gap:8px;padding:8px 10px}.cell{width:42px;height:42px;border-radius:15px;display:grid;place-items:center;background:#fff7c7;border:3px solid #f0c85a;font-size:24px;transition:.2s}.cell.done{background:#ffd85e;transform:scale(.92);filter:saturate(1.2)}.buttons{position:absolute;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));display:flex;gap:10px;justify-content:center;align-items:center}.mode{font-size:24px;width:56px;height:52px;opacity:.65}.mode.on{opacity:1;background:#fff3a3;transform:translateY(-2px)}.start{position:absolute;inset:0;display:grid;place-items:center;padding:24px;background:linear-gradient(#b8ecffcc,#fff5bccc);z-index:5}.card{width:min(520px,100%);border-radius:32px;background:rgba(255,255,255,.9);box-shadow:0 30px 90px #17203322;padding:26px;text-align:center}.bee{font-size:78px;animation:bob 1.3s ease-in-out infinite}.card h1{font-size:clamp(42px,11vw,70px);line-height:.92;margin:8px 0 12px;letter-spacing:-.06em}.card p{margin:0 0 18px;color:#52606f;font-weight:700}.play{border:0;border-radius:999px;padding:18px 28px;background:#172033;color:white;font-weight:1000;font-size:24px;box-shadow:0 16px 40px #17203333}.hint{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);padding:12px 16px;border-radius:22px;background:rgba(255,255,255,.85);box-shadow:0 12px 34px #17203322;font-size:20px;font-weight:1000;opacity:0;transition:.25s;pointer-events:none}.hint.show{opacity:1}@keyframes bob{50%{transform:translateY(-10px) rotate(4deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<canvas id="gl"></canvas>
+<div class="top"><a class="back" href="../../" aria-label="Mini Games">←</a><div id="recipe" class="pill" aria-label="Mission"></div><button id="recenter" class="back" aria-label="Recenter">◎</button></div>
+<div class="buttons" aria-label="Guidance"><button class="mode on" data-mode="0" aria-label="Little Bee">🐣</button><button class="mode" data-mode="1" aria-label="Guided Bee">🐝</button><button class="mode" data-mode="2" aria-label="Free Flight">🥽</button></div>
+<div id="hint" class="hint">✨</div>
+<div id="start" class="start"><section class="card"><div class="bee">🐝</div><h1>Bee Pollen Flight</h1><p>Tilt or drag to fly. Touch matching flowers, then return to the glowing hive.</p><button id="play" class="play">Play</button></section></div>
+</div>
+<script>
+(() => {
+'use strict';
+const canvas=document.getElementById('gl'), gl=canvas.getContext('webgl',{antialias:true,alpha:false});
+if(!gl){document.body.innerHTML='<p style="padding:24px;font:700 22px system-ui">WebGL is not available on this device.</p>';return;}
+const recipeEl=document.getElementById('recipe'), hint=document.getElementById('hint');
+const DPR=Math.min(2,window.devicePixelRatio||1), R=8;
+let W=1,H=1,time=0,last=performance.now(),started=false,mode=0,neutral={b:0,g:0};
+let input={x:0,y:0,drag:false,gyro:false}, bee={n:norm([.22,.92,.3]),f:norm([1,0,0]),alt:2.6,bank:0,bag:0};
+const colors={purple:[.58,.31,.92],yellow:[1,.82,.18],white:[.96,.96,.88],pink:[1,.48,.68],leaf:[.28,.76,.34],grass:[.45,.82,.42],trunk:[.56,.35,.18],hive:[.98,.7,.17],sky:[.65,.88,1],bee:[1,.8,.1],black:[.1,.08,.06]};
+const kinds=['purple','yellow','white'];
+const missions=[['purple'],['yellow','purple'],['purple','purple','yellow','white'],['white','yellow','purple','purple'],['yellow','yellow','white','purple']];
+let missionIndex=0,mission=[],collected=[],flowers=[],decos=[],particles=[],flash=0;
+const hive={n:norm([0,1,0]),alt:.35};
+function add(a,b){return [a[0]+b[0],a[1]+b[1],a[2]+b[2]]}function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]}function mul(a,s){return [a[0]*s,a[1]*s,a[2]*s]}function dot(a,b){return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]}function cross(a,b){return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]}function len(a){return Math.hypot(a[0],a[1],a[2])||1}function norm(a){return mul(a,1/len(a))}function mix(a,b,t){return add(mul(a,1-t),mul(b,t))}function clamp(x,a,b){return Math.max(a,Math.min(b,x))}function rand(a,b){return a+Math.random()*(b-a)}
+function tangentBasis(n){let x=norm(cross(Math.abs(n[1])>.9?[1,0,0]:[0,1,0],n));return {x,y:norm(cross(n,x)),z:n};}
+function surfacePoint(n,alt=0){return mul(n,R+alt)}function projectTangent(f,n){return norm(sub(f,mul(n,dot(f,n))))}
+function rotateAround(a,axis,ang){const c=Math.cos(ang),s=Math.sin(ang);return add(add(mul(a,c),mul(cross(axis,a),s)),mul(axis,dot(axis,a)*(1-c)))}
+function mulM(a,b){let o=Array(16).fill(0);for(let r=0;r<4;r++)for(let c=0;c<4;c++)for(let k=0;k<4;k++)o[c*4+r]+=a[k*4+r]*b[c*4+k];return o}
+function model(pos,basis,scale){return [basis.x[0]*scale[0],basis.x[1]*scale[0],basis.x[2]*scale[0],0,basis.y[0]*scale[1],basis.y[1]*scale[1],basis.y[2]*scale[1],0,basis.z[0]*scale[2],basis.z[1]*scale[2],basis.z[2]*scale[2],0,pos[0],pos[1],pos[2],1]}
+function perspective(fov,asp,n,f){let t=1/Math.tan(fov/2),nf=1/(n-f);return [t/asp,0,0,0,0,t,0,0,0,0,(f+n)*nf,-1,0,0,2*f*n*nf,0]}
+function lookAt(eye,center,up){let z=norm(sub(eye,center)),x=norm(cross(up,z)),y=cross(z,x);return [x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-dot(x,eye),-dot(y,eye),-dot(z,eye),1]}
+function shader(type,src){let s=gl.createShader(type);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s));return s}
+const vs=`attribute vec3 p,n;uniform mat4 m,vp;varying vec3 N,W;void main(){vec4 w=m*vec4(p,1.0);W=w.xyz;N=mat3(m)*n;gl_Position=vp*w;}`;
+const fs=`precision mediump float;uniform vec3 color,light;uniform float glow;varying vec3 N,W;void main(){float d=max(dot(normalize(N),normalize(light)),0.0);float band=d>.72?1.0:d>.35?.78:.56;vec3 c=color*band+color*glow*.65;gl_FragColor=vec4(c,1.0);}`;
+const prog=gl.createProgram();gl.attachShader(prog,shader(gl.VERTEX_SHADER,vs));gl.attachShader(prog,shader(gl.FRAGMENT_SHADER,fs));gl.linkProgram(prog);gl.useProgram(prog);
+const loc={p:gl.getAttribLocation(prog,'p'),n:gl.getAttribLocation(prog,'n'),m:gl.getUniformLocation(prog,'m'),vp:gl.getUniformLocation(prog,'vp'),color:gl.getUniformLocation(prog,'color'),light:gl.getUniformLocation(prog,'light'),glow:gl.getUniformLocation(prog,'glow')};
+function sphereMesh(rows=12,cols=18){let a=[],idx=[];for(let y=0;y<=rows;y++){let v=y/rows,th=v*Math.PI;for(let x=0;x<=cols;x++){let u=x/cols,ph=u*Math.PI*2,px=Math.sin(th)*Math.cos(ph),py=Math.cos(th),pz=Math.sin(th)*Math.sin(ph);a.push(px,py,pz,px,py,pz)}}for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){let i=y*(cols+1)+x;idx.push(i,i+1,i+cols+1,i+1,i+cols+2,i+cols+1)}return {a:new Float32Array(a),i:new Uint16Array(idx),count:idx.length}}
+const sphere=sphereMesh(),buf=gl.createBuffer(),ibuf=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buf);gl.bufferData(gl.ARRAY_BUFFER,sphere.a,gl.STATIC_DRAW);gl.enableVertexAttribArray(loc.p);gl.vertexAttribPointer(loc.p,3,gl.FLOAT,false,24,0);gl.enableVertexAttribArray(loc.n);gl.vertexAttribPointer(loc.n,3,gl.FLOAT,false,24,12);gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,ibuf);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,sphere.i,gl.STATIC_DRAW);
+function draw(pos,basis,scale,color,glow=0){gl.uniformMatrix4fv(loc.m,false,new Float32Array(model(pos,basis,scale)));gl.uniform3fv(loc.color,new Float32Array(color));gl.uniform1f(loc.glow,glow);gl.drawElements(gl.TRIANGLES,sphere.count,gl.UNSIGNED_SHORT,0)}
+function makeWorld(){flowers=[];decos=[];const ns=[];for(let i=0;i<34;i++)ns.push(norm([rand(-1,1),rand(-.55,.9),rand(-1,1)]));ns.forEach((n,i)=>flowers.push({n,kind:i%5===0?'pink':kinds[i%3],taken:false,wob:Math.random()*9}));for(let i=0;i<58;i++)decos.push({n:norm([rand(-1,1),rand(-.7,.85),rand(-1,1)]),type:i%4,scale:rand(.55,1.35),rot:rand(0,6.28)});}
+function setMission(){mission=missions[missionIndex++%missions.length].slice();collected=mission.map(()=>false);flowers.forEach(f=>f.taken=false);renderRecipe();}
+function renderRecipe(){recipeEl.innerHTML='';mission.forEach((k,i)=>{let d=document.createElement('div');d.className='cell'+(collected[i]?' done':'');d.textContent=k==='purple'?'🌸':k==='yellow'?'🌼':'🤍';recipeEl.appendChild(d);});}
+function need(kind){return mission.findIndex((k,i)=>k===kind&&!collected[i])}function complete(){return collected.every(Boolean)}
+function pop(msg='✨'){hint.textContent=msg;hint.classList.add('show');setTimeout(()=>hint.classList.remove('show'),520)}
+function burst(pos,color,count=12){for(let i=0;i<count;i++)particles.push({p:pos.slice(),v:norm([rand(-1,1),rand(-1,1),rand(-1,1)]),life:rand(.45,.9),c:color});}
+function update(dt){if(!started)return;time+=dt;flash=Math.max(0,flash-dt);let assist=[1,.45,.12][mode], turn=input.x*(1.25+mode*.5), lift=-input.y*(mode?1.4:.35);if(mode===0)lift*=.15;bee.f=rotateAround(bee.f,bee.n,-turn*dt);bee.f=projectTangent(bee.f,bee.n);bee.alt=clamp(bee.alt+lift*dt,1.2,5.4);let speed=mode===2?4.5:3.2;
+let target=null,best=9;if(!complete()){for(const fl of flowers){if(fl.taken||need(fl.kind)<0)continue;let d=Math.acos(clamp(dot(bee.n,fl.n),-1,1))*R;if(d<best){best=d;target=fl;}}}else target={n:hive.n,kind:'hive'};
+if(target){let dir=projectTangent(target.n,bee.n);if(best<5||complete()){bee.f=norm(mix(bee.f,dir,dt*assist*(complete()?1.1:.7)));if(mode<2 && best<2.6)bee.alt+=((target.kind==='hive'?1.8:1.25)-bee.alt)*dt*assist*1.8;}}
+bee.n=norm(add(mul(bee.n,Math.cos(speed*dt/R)),mul(bee.f,Math.sin(speed*dt/R))));bee.f=projectTangent(bee.f,bee.n);bee.bank=mix([bee.bank,0,0],[turn*.8,0,0],.08)[0];
+for(const fl of flowers){if(fl.taken)continue;let d=Math.acos(clamp(dot(bee.n,fl.n),-1,1))*R, rightKind=need(fl.kind)>=0;if(d<(rightKind?1.05:.7)&&Math.abs(bee.alt-1.25)<(rightKind?1.8:.85)){if(rightKind){fl.taken=true;collected[need(fl.kind)]=true;bee.bag++;renderRecipe();burst(surfacePoint(fl.n,1.45),colors[fl.kind],18);pop(fl.kind==='purple'?'🌸':fl.kind==='yellow'?'🌼':'🤍');if(complete())pop('🏠✨');}else{pop('👀');}}}
+if(complete()&&Math.acos(clamp(dot(bee.n,hive.n),-1,1))*R<1.1&&Math.abs(bee.alt-1.7)<2.1){burst(surfacePoint(hive.n,2.2),[1,.76,.18],32);pop('🍯');bee.bag=0;setTimeout(setMission,450);}
+particles=particles.filter(p=>(p.life-=dt)>0);particles.forEach(p=>p.p=add(p.p,mul(p.v,dt*2.4)));}
+function render(){resize();gl.viewport(0,0,W,H);gl.clearColor(.7,.9,1,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.enable(gl.DEPTH_TEST);gl.enable(gl.CULL_FACE);gl.uniform3fv(loc.light,new Float32Array(norm([.4,.9,.3])));
+let up=bee.n, eye=add(add(surfacePoint(bee.n,bee.alt),mul(bee.f,-9)),mul(up,4.1)), center=add(surfacePoint(bee.n,bee.alt),mul(bee.f,3));let vp=mulM(perspective(1.02,W/H,.1,90),lookAt(eye,center,up));gl.uniformMatrix4fv(loc.vp,false,new Float32Array(vp));
+draw([0,0,0],{x:[1,0,0],y:[0,1,0],z:[0,0,1]},[R,R,R],colors.grass,0);
+for(const d of decos){let b=tangentBasis(d.n), p=surfacePoint(d.n,.18);if(d.type===0){draw(p,b,[.28*d.scale,.75*d.scale,.28*d.scale],colors.trunk);draw(surfacePoint(d.n,.95*d.scale),b,[.85*d.scale,.85*d.scale,.85*d.scale],colors.leaf)}else if(d.type===1){draw(p,b,[.55*d.scale,.12,.55*d.scale],[.38,.72,.95])}else if(d.type===2){draw(surfacePoint(d.n,.32),b,[.35*d.scale,.35*d.scale,.35*d.scale],[.92,.25,.18]);draw(surfacePoint(d.n,.13),b,[.16,.32,.16],[.94,.87,.62])}else draw(p,b,[.38*d.scale,.24*d.scale,.34*d.scale],[.58,.56,.52]);}
+let hb=tangentBasis(hive.n);draw(surfacePoint(hive.n,.95),hb,[.9,.9,.9],colors.hive,complete()?.25:0);draw(surfacePoint(hive.n,1.75),hb,[.55,.7,.55],[.76,.45,.12],complete()?.4:0);if(complete())for(let i=0;i<7;i++)draw(surfacePoint(hive.n,2+i*.8),hb,[.13,.13,.13],[1,.82,.2],.6);
+for(const fl of flowers){if(fl.taken)continue;let b=tangentBasis(fl.n), p=surfacePoint(fl.n,.7), needGlow=need(fl.kind)>=0&&!complete();draw(surfacePoint(fl.n,.25),b,[.08,.45,.08],[.25,.62,.24]);for(let i=0;i<5;i++){let a=i*6.283/5+time*.4+fl.wob, pet=add(p,add(mul(b.x,Math.cos(a)*.38),mul(b.y,Math.sin(a)*.38)));draw(pet,b,[.26,.12,.26],colors[fl.kind],needGlow?.22:0)}draw(p,b,[.2,.2,.2],fl.kind==='yellow'?[.42,.25,.09]:[1,.78,.25],needGlow?.35:0)}
+let bp=surfacePoint(bee.n,bee.alt), side=cross(bee.n,bee.f), bb={x:side,y:bee.n,z:bee.f};draw(bp,bb,[.46,.36,.72],colors.bee);draw(add(bp,mul(bee.f,.55)),bb,[.28,.28,.28],[.12,.1,.08]);draw(add(bp,mul(side,.32)),bb,[.38,.05,.22],[.9,.96,1],.15);draw(add(bp,mul(side,-.32)),bb,[.38,.05,.22],[.9,.96,1],.15);if(bee.bag)draw(add(bp,mul(bee.n,-.28)),bb,[.25,.25,.25],[1,.72,.12],.12);
+particles.forEach(p=>draw(p.p,tangentBasis(norm(p.p)),[.09,.09,.09],p.c,.35));requestAnimationFrame(loop)}
+function loop(now){let dt=Math.min(.04,(now-last)/1000);last=now;update(dt);render();}
+function resize(){let w=Math.floor(innerWidth*DPR),h=Math.floor(innerHeight*DPR);if(w!==W||h!==H){W=canvas.width=w;H=canvas.height=h;}}
+function start(){started=true;document.getElementById('start').style.display='none';if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)DeviceOrientationEvent.requestPermission().catch(()=>{});pop('🐝');}
+function orient(e){input.gyro=true;if(!neutral.set){neutral={b:e.beta||0,g:e.gamma||0,set:true}}input.x=clamp(((e.gamma||0)-neutral.g)/28,-1,1);input.y=clamp(((e.beta||0)-neutral.b)/24,-1,1)}
+addEventListener('deviceorientation',orient);document.getElementById('recenter').onclick=()=>{neutral.set=false;pop('◎')};document.getElementById('play').onclick=start;document.querySelectorAll('.mode').forEach(btn=>btn.onclick=()=>{mode=+btn.dataset.mode;document.querySelectorAll('.mode').forEach(b=>b.classList.toggle('on',b===btn));pop(btn.textContent)});
+let sx=0,sy=0;canvas.addEventListener('pointerdown',e=>{input.drag=true;sx=e.clientX;sy=e.clientY;canvas.setPointerCapture(e.pointerId)});canvas.addEventListener('pointermove',e=>{if(!input.drag)return;input.x=clamp((e.clientX-sx)/110,-1,1);input.y=clamp((e.clientY-sy)/110,-1,1)});canvas.addEventListener('pointerup',()=>{input.drag=false;input.x=0;input.y=0});
+addEventListener('keydown',e=>{if(e.key==='ArrowLeft')input.x=-1;if(e.key==='ArrowRight')input.x=1;if(e.key==='ArrowUp')input.y=-1;if(e.key==='ArrowDown')input.y=1});addEventListener('keyup',()=>{input.x=0;input.y=0});
+makeWorld();setMission();requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
