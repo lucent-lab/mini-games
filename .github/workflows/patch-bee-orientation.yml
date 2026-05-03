@@ -41,3 +41,5 @@ jobs:
           git add games/bee-pollen-flight/index.html
           git commit -m "Allow portrait and adjust landscape camera"
           git push
+
+# trigger: orientation-camera-update
