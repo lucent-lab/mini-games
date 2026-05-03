@@ -1,0 +1,43 @@
+name: Patch Bee Pollen Flight Orientation
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-bee-orientation.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch game file
+        run: |
+          python3 <<'PY'
+          from pathlib import Path
+          path = Path('games/bee-pollen-flight/index.html')
+          text = path.read_text()
+          text = text.replace('@media (orientation:portrait){.landscape{display:grid}}', '@media (orientation:portrait){.landscape{display:none}}')
+          text = text.replace("function start(){started=true;document.getElementById('start').style.display='none';lockLandscape();if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)DeviceOrientationEvent.requestPermission().catch(()=>{});pop('🐝');}", "function start(){started=true;document.getElementById('start').style.display='none';if(window.DeviceOrientationEvent&&DeviceOrientationEvent.requestPermission)DeviceOrientationEvent.requestPermission().catch(()=>{});pop('🐝');}")
+          old = "let up=bee.n, eye=add(add(surfacePoint(bee.n,bee.alt),mul(bee.f,-9)),mul(up,4.1)), center=add(surfacePoint(bee.n,bee.alt),mul(bee.f,3));let vp=mulM(perspective(1.02,W/H,.1,120*worldSize),lookAt(eye,center,up));gl.uniformMatrix4fv(loc.vp,false,new Float32Array(vp));"
+          new = "let up=bee.n, landscapeView=W>H, camBack=landscapeView?6.4:9, camUp=landscapeView?3.3:4.1, camAhead=landscapeView?2.4:3, eye=add(add(surfacePoint(bee.n,bee.alt),mul(bee.f,-camBack)),mul(up,camUp)), center=add(surfacePoint(bee.n,bee.alt),mul(bee.f,camAhead));let vp=mulM(perspective(1.02,W/H,.1,120*worldSize),lookAt(eye,center,up));gl.uniformMatrix4fv(loc.vp,false,new Float32Array(vp));"
+          if old not in text:
+              raise SystemExit('camera line not found')
+          text = text.replace(old, new)
+          path.write_text(text)
+          PY
+      - name: Commit patched game
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git add games/bee-pollen-flight/index.html
+          git commit -m "Allow portrait and adjust landscape camera"
+          git push
